@@ -1,3 +1,8 @@
+import numpy as np
+from matplotlib import pyplot as plt
+
+
+
 class flow(object):
     def __init__(self, nx=256, ny=256, lx=1.0e6, ly=2.0e6, beta=6.0e-10, kappa=10.0, w=4.0e-6, forcing_mode=(6,9)):
         x = np.linspace(-np.pi, np.pi, nx, endpoint=False)
