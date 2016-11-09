@@ -1,10 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib import animation
-import matplotlib as mpl
-mpl.rcParams['animation.ffmpeg_path'] = 'C:\\ffmpeg-static\\ffmpeg-20160919-11777eb-win64-static\\bin\\ffmpeg.exe'
-
-
+from matplotlib import pyplot as plt
 
 
 
