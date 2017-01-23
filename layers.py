@@ -7,11 +7,11 @@ class flow(object):
     def __init__(self, nx=256, ny=256, lx=1.0e6, ly=2.0e6, beta=6.0e-10, kappa=10.0, w=4.0e-6, forcing_mode=(6,9)):
         x = np.linspace(-np.pi, np.pi, nx, endpoint=False)
         y = np.linspace(-np.pi, np.pi, ny, endpoint=False)
-        self.xx, self.yy = np.meshgrid(x,y)
+        self.xx, self.yy = np.meshgrid(x,y, indexing='ij')
         
-        kx = np.fft.rfftfreq(nx, lx/nx)
-        ky = np.fft.fftfreq(ny, ly/ny)
-        self.kkx, self.kky = np.meshgrid(kx,ky)
+        kx = np.fft.fftfreq(nx, lx/nx)
+        ky = np.fft.rfftfreq(ny, ly/ny)
+        self.kkx, self.kky = np.meshgrid(kx,ky, indexing='ij')
         
         self.ksq = self.kkx**2 + self.kky**2
         self.ksq[0,0] += 1.0e-15
@@ -27,7 +27,7 @@ class flow(object):
         
         self.forcing_mode = forcing_mode
 
-        self.psihat = np.zeros((nx,int(ny/2+1)), dtype=complex)
+        self.psihat = np.zeros_like(self.ksq, dtype=complex)
         self.psihat[2,4] = nx*ny*4
         self.psihat[4,2] = nx*ny
         
@@ -83,8 +83,8 @@ class flow(object):
         """Compute the jacobian determinant."""
         
         # dealias
-        qhat[self.ksq>2/3*self.kmax] = 0.0
-        psihat[self.ksq>2/3*self.kmax] = 0.0
+        qhat[self.ksq>4/9*self.kmax**2] = 0.0
+        psihat[self.ksq>4/9*self.kmax**2] = 0.0
         
         psihat_x = psihat*self.kkx*(0.0+1.0j)
         psihat_y = psihat*self.kky*(0.0+1.0j)
@@ -125,7 +125,7 @@ class flow(object):
     def unmunge(self, munged):
         """Return the 1d real sequence to its 2d complex state"""
         
-        z = munged.reshape((2,self.nx,int(self.ny/2+1)))
+        z = munged.reshape((2,self.nx,self.ny/2+1))
         r = z[0]
         i = z[1]
         return r + (0+1.0j)*i
