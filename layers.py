@@ -1,13 +1,14 @@
 import numpy as np
 from scipy.integrate import ode
-from matplotlib import pyplot as plt
-from matplotlib import animation
-
+#from matplotlib import pyplot as plt
+#from matplotlib import animation
+#import pickle
 
 class flow(object):
     def __init__(self, nx=64, ny=64, lx=1.0e6, ly=2.0e6,
                  beta=6.0e-10, kappa=10.0, w=4.0e-6, forcing_mode=(6,9),
-                 method='dopri5', dt=2*3600):
+                 method='dopri5', dt=2*3600,
+                 initial_amp=1.2e5):
         x = np.linspace(-np.pi, np.pi, nx, endpoint=False)
         y = np.linspace(-np.pi, np.pi, ny, endpoint=False)
         self.xx, self.yy = np.meshgrid(x,y, indexing='ij')
@@ -42,7 +43,7 @@ class flow(object):
 #        self.qhat = -self.psihat*self.ksq
 #        self.q = np.fft.irfft2(self.qhat)
 
-        self.qhat = self.forcing(0.0)
+        self.qhat = self.forcing(0.0) * initial_amp
         self.q = np.fft.irfft2(self.qhat)
         self.psihat = self.get_psihat_from_qhat(self.qhat)
         self.psi = np.fft.irfft2(self.psihat)
@@ -74,11 +75,11 @@ class flow(object):
         
         return
             
-    def plot_psi(self):
-        return plt.contour(self.xx, self.yy, self.psi)
+#    def plot_psi(self):
+#        return plt.contour(self.xx, self.yy, self.psi)
         
-    def plot_q(self):
-        return plt.contour(self.xx, self.yy, self.q)
+#    def plot_q(self):
+#        return plt.contour(self.xx, self.yy, self.q)
         
         
     def get_psihat_from_qhat(self, qhat):
@@ -195,21 +196,21 @@ class flow(object):
         return r + (0+1.0j)*i
     
     
-    def animate_results(self, filename, stride=1):
-        fig = plt.figure(figsize=(10,10))
-        ax = plt.axes()
-
-        plt.xlabel(r'x')
-        plt.ylabel(r'y')
-
-        def animate(i):
-            qhat = self.results[int(i*stride)]
-            psihat = self.get_psihat_from_qhat(qhat)
-            z = np.fft.irfft2(psihat)
-            ax.clear()
-            cont = plt.contour(self.xx, self.yy, z)
-            return cont
-
-        anim = animation.FuncAnimation(fig, animate, frames=len(self.results)//stride, blit=False)
-        mywriter = animation.FFMpegWriter()
-        anim.save(filename, bitrate=10000)
+#    def animate_results(self, filename, stride=1):
+#        fig = plt.figure(figsize=(10,10))
+#        ax = plt.axes()
+#
+#        plt.xlabel(r'x')
+#        plt.ylabel(r'y')
+#
+#        def animate(i):
+#            qhat = self.results[int(i*stride)]
+#            psihat = self.get_psihat_from_qhat(qhat)
+#            z = np.fft.irfft2(psihat)
+#            ax.clear()
+#            cont = plt.contour(self.xx, self.yy, z)
+#            return cont
+#
+#        anim = animation.FuncAnimation(fig, animate, frames=len(self.results)//stride, blit=False)
+#        mywriter = animation.FFMpegWriter()
+#        anim.save(filename, bitrate=10000)
