@@ -8,7 +8,7 @@ class flow(object):
     def __init__(self, nx=64, ny=64, lx=1.0e6, ly=2.0e6,
                  beta=6.0e-10, kappa=10.0, w=4.0e-6, forcing_mode=(6,9),
                  method='dopri5', dt=2*3600,
-                 initial_amp=1.0e12):
+                 initial_amp=1.2e5):
         x = np.linspace(-np.pi, np.pi, nx, endpoint=False)
         y = np.linspace(-np.pi, np.pi, ny, endpoint=False)
         self.xx, self.yy = np.meshgrid(x,y, indexing='ij')
