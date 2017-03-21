@@ -76,12 +76,8 @@ class Flow(object):
         self.kymax = np.max(ky)
 
         # initial state
-        self.psihat = np.zeros_like(self.ksq, dtype=complex)
-        self.qhat = self.forcing(0.0) * self.initial_amp
-        self.q = np.fft.irfft2(self.qhat)
-        self.psihat = self.get_psihat_from_qhat(self.qhat)
-        self.psi = np.fft.irfft2(self.psihat)
-
+        self.update_state(self.forcing(0.0) * self.initial_amp)
+        
         # integrator method and initial conditions
         self.integrator = ode(self.rhs).set_integrator(self.method)
         self.results = [self.qhat]
@@ -89,51 +85,89 @@ class Flow(object):
 
         # filename for results
         self.resultsfile, self.h5out = self.setup_hdf5()
-    
+        self.push_state(0)
+        
+        
+    def update_state(self, qhat):
+        """Update the current state from qhat."""
+        
+        self.qhat = qhat
+        self.q = np.fft.irfft2(self.qhat)
+        self.psihat = self.get_psihat_from_qhat(self.qhat)
+        self.psi = np.fft.irfft2(self.psihat)
 
+    def push_state(self, frame):
+        """Push current state to the hdf5 file."""
+        
+        for var in ['qhat', 'psihat', 'q', 'psi']:
+            output = self.h5out[var]
+            output[frame,:,:] = getattr(self, var)        
+        
     def setup_hdf5(self):
         """Set up the hdf5 archive."""
+        
         fname =  "flow-{}-{}-{}.h5".format(self.w, self.kappa, self.seed)
-        h5out = h5py.File(self.resultsfile, "w")
-        h5out.create_dataset('qhat', (None, self.qhat.shape[0], self.qhat.shape[1]), dtype='c16')
-        h5out.create_dataset('psihat', (None, self.qhat.shape[0], self.qhat.shape[1]), dtype='c16')
-        h5out.create_dataset('q', (None, self.q.shape[0], self.q.shape[1]))
-        h5out.create_dataset('psi', (None, self.q.shape[0], self.q.shape[1]))
-        h5out.create_dataset('times', (None))
-
-        h5out.create_dataset('energy', (None))
-        h5out.create_dataset('enstrophy', (None))
+        h5out = h5py.File(fname, "w")
+        h5out.create_dataset('qhat', (1, self.qhat.shape[0], self.qhat.shape[1]),
+                             maxshape=(None, self.qhat.shape[0], self.qhat.shape[1]),
+                             dtype='c16')
+        h5out.create_dataset('psihat', (1, self.qhat.shape[0], self.qhat.shape[1]),
+                             maxshape=(None, self.qhat.shape[0], self.qhat.shape[1]),
+                             dtype='c16')
+        h5out.create_dataset('q', (1, self.q.shape[0], self.q.shape[1]),
+                             maxshape=(None, self.q.shape[0], self.q.shape[1]))
+        h5out.create_dataset('psi', (1, self.q.shape[0], self.q.shape[1]),
+                             maxshape=(None, self.q.shape[0], self.q.shape[1]))
+        
+        h5out.create_dataset('times', (1,), maxshape=(None))
+        h5out.create_dataset('energy', (1,), maxshape=(None))
+        h5out.create_dataset('enstrophy', (1,), maxshape=(None))
         
         return fname, h5out
 
-    def integrate(self, tf):
+    def resize_output(self, addition):
+        """Add space to the output file for some additional results."""
+
+        for field in ['psihat', 'qhat', 'psi', 'q']:
+            length, xdim, ydim = self.h5out[field].shape
+            self.h5out[field].resize((length+addition, xdim, ydim))
+
+        return length
+        
+
+    def integrate(self, tf, full_output=True):
         """Run the integrator from the current time to tf.
 
         Integrator parameters are defined in __init__
         """
 
-        # make sure we're walking forward in time
-        if tf < self.t + self.dt:
-            print("won't integrate backward in time from %f to %f" %(self.t,
-                                                                     tf))
-            return
+        # figure out how to resize the output arrays
+        nframes = (tf - self.t)//self.dt
 
+        output = self.h5out['qhat']
+
+        if nframes < 1:
+            raise ValueError("Current time {}, final time {}, dt {}.".format(self.t, df, self.dt))
+
+        # resize
+        current_frame = self.resize_output(nframes)
+        
         y0 = self.munge(self.qhat)
         self.integrator.set_initial_value(y0, self.t)
 
         # do the integration
         while self.integrator.successful() and self.integrator.t < tf:
             self.integrator.integrate(self.integrator.t + self.dt)
-            self.results.append(self.unmunge(self.integrator.y))
-
+            
+            # Integration would be faster if we cut this step out
+            # but premature optimization is the root of much evil.
+            self.update_state(self.unmunge(self.integrator.y))
+            self.push_state(current_frame)
+            current_frame += 1
+            
         # update object state
-        self.qhat = self.unmunge(self.integrator.y)
-        self.psihat = self.get_psihat_from_qhat(self.qhat)
-        self.psi = np.fft.irfft2(self.psihat)
-        self.q = np.fft.irfft2(self.qhat)
+        self.update_state(self.unmunge(self.integrator.y))
         self.t = self.integrator.t
-
-        # serialize
 
         return
 
